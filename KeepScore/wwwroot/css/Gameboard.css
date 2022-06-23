@@ -1,0 +1,64 @@
+﻿body {
+}
+
+.team-info {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-gap: 15px;
+    grid-template-areas:
+        "fouls timeout"
+}
+
+.title {
+    font-size: clamp(1.5rem, 4.5vw, 4rem);
+    grid-area: title;
+    text-align: center;
+}
+
+.home-info, .visitor-info {
+    text-align: center;
+}
+
+.game-info {
+    text-align: center;
+    margin: 1.5vw, 1vw, 1vw, 1.5vw;
+}
+
+.score-text {
+    font-size: clamp(3rem, 10vw, 10rem);
+    font-weight: bolder;
+}
+
+.time-text-card {
+    font-size: 1.5rem;
+}
+
+.team-text {
+    font-size: clamp(2rem, 5vw, 4rem);
+}
+
+.info-text {
+    font-size: clamp(1.25rem, 3.5vw, 2rem);
+}
+
+.fouls {
+    margin: auto;
+}
+
+.timeout {
+    margin: auto;
+}
+
+@media(min-width: 600px) {
+    .scoreboard {
+        text-align: center;
+        display: grid;
+        place-items: center;
+        grid-template-columns: repeat(3, 1fr);
+        grid-auto-rows: minmax(100px, auto);
+        grid-gap: 10px;
+        grid-template-areas:
+            "title title title"
+            "home-info game-info visitor-info";
+    }
+}
