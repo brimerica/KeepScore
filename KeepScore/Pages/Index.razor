@@ -1,9 +1,140 @@
 ﻿@page "/"
+@inject NavigationManager NavigationManager
+@inject GameHttpClient gameHttpClient
+@using Microsoft.AspNetCore.SignalR.Client
+@using KeepScore.Models
+@using KeepScore.Services
+@implements IAsyncDisposable
 
-<PageTitle>Index</PageTitle>
+<div class="row">
+    <div>
+        <button class="btn btn-primary" @onclick="AddGame"><i class="oi oi-plus" /> Add Game</button>
+    </div>
+    <div class="col text-center">
+        <h3>Games Dashboard</h3>
+    </div>
+</div>
 
-<h1>Hello, world!</h1>
+<hr />
 
-Welcome to your new app.
+@if (games == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
 
-<SurveyPrompt Title="How is Blazor working for you?"/>
+    <div class="container-fluid">
+        <div class="row">
+            @foreach (var game in games)
+            {
+                <div class="col-xl-4 col-md-6 mb-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <BaseballCard Game="game" />
+                            <div class="row justify-content-sm-center">
+                                <button class="btn btn-light" @onclick="@(() => GameAdmin(game.Id))">Game Admin</button>
+                                <button class="btn btn-primary" @onclick="@(() => GoToGame(game.Id))">View Game</button>
+                                <button class="btn btn-outline-danger" @onclick="@(() => DeleteGame(game.Id))">Delete Game</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code{
+
+    private HubConnection hubConnection;
+    private BaseballModel[] games;
+
+    protected override async Task OnInitializedAsync()
+    {
+        games = await gameHttpClient.GetGames();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/scorehub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<BaseballModel[]>("GameDeleted", newGameList =>
+        {
+            games = newGameList;
+            StateHasChanged();
+        });
+
+        hubConnection.On<BaseballModel>("GameAdded", receievedGame =>
+        {
+            games = games
+                .Where(s => s.GameTitle != receievedGame.GameTitle)
+                .Append(receievedGame)
+                .ToArray();
+            StateHasChanged();
+        });
+
+        hubConnection.On<BaseballModel>("GameUpdated", updatedGame =>
+        {
+            foreach (var game in games)
+            {
+                if (game.Id == updatedGame.Id)
+                {
+                    game.HomeTeamScore = updatedGame.HomeTeamScore;
+                    game.GuestTeamScore = updatedGame.GuestTeamScore;
+                }
+            }
+            StateHasChanged();
+        });
+
+        //Eventually update this SignalR connection to show the moving clock.
+        //hubConnection.On<ClockModel>("ClockUpdated", clock =>
+        //{
+
+        //});
+
+        await hubConnection.StartAsync();
+
+    }
+
+    public void Dispose()
+    {
+        hubConnection.Remove("GameAdded");
+        hubConnection.Remove("GameDeleted");
+        hubConnection.Remove("GameUpdated");
+    }
+
+    public void AddGame()
+    {
+        NavigationManager.NavigateTo("add-game");
+    }
+
+    public async void DeleteGame(Guid Id)
+    {
+        await gameHttpClient.DeleteGame(Id);
+    }
+
+    public void GoToGame(Guid gameId)
+    {
+        NavigationManager.NavigateTo($"baseball-board/{gameId}");
+    }
+
+    public void GameAdmin(Guid gameId)
+    {
+        NavigationManager.NavigateTo($"baseball-board-admin/{gameId}");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+
+    public async Task Reconnect()
+    {
+        await hubConnection.StartAsync();
+        //return IsConnected;
+    }
+}
